@@ -21,14 +21,15 @@
     th, td { padding: .6rem .8rem; border-bottom: 1px solid #eee; text-align: left; }
     th { background: #f5f5f5; font-weight: 600; }
     .badge { padding: .2rem .6rem; border-radius: 12px; font-size: .78rem; font-weight: 600; }
-    .pendente { background: #fff3cd; color: #856404; }
+    .pendente   { background: #fff3cd; color: #856404; }
     .confirmado { background: #d1ecf1; color: #0c5460; }
     .em_entrega { background: #cce5ff; color: #004085; }
-    .entregue { background: #d4edda; color: #155724; }
-    .cancelado { background: #f8d7da; color: #721c24; }
+    .entregue   { background: #d4edda; color: #155724; }
+    .cancelado  { background: #f8d7da; color: #721c24; }
     #msg { padding: .7rem 1rem; border-radius: 4px; margin-bottom: 1rem; display: none; }
-    #msg.ok { background: #d4edda; color: #155724; display: block; }
+    #msg.ok  { background: #d4edda; color: #155724; display: block; }
     #msg.err { background: #f8d7da; color: #721c24; display: block; }
+    select { padding: .3rem; border-radius: 4px; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
@@ -49,7 +50,6 @@
 
     <section>
       <h2>Pedidos</h2>
-      <button onclick="carregarPedidos()" style="margin-bottom:1rem">Atualizar lista</button>
       <table>
         <thead><tr><th>Cliente</th><th>Endereço</th><th>Qtd</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody id="tbody"></tbody>
@@ -58,75 +58,90 @@
   </main>
 
   <script>
-    const API = '/api/pedidos';
+    const STORAGE_KEY = 'garrafao_pedidos';
+
+    function carregar() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    }
+
+    function salvar(pedidos) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(pedidos));
+    }
+
+    function uuid() {
+      return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
 
     function mostrarMsg(txt, tipo) {
       const el = document.getElementById('msg');
       el.textContent = txt;
       el.className = tipo;
-      setTimeout(() => el.className = '', 3000);
+      setTimeout(() => { el.style.display = 'none'; el.className = ''; }, 3000);
     }
 
-    async function carregarPedidos() {
-      const res = await fetch(API);
-      const pedidos = await res.json();
+    function renderizar() {
+      const pedidos = carregar();
       const tbody = document.getElementById('tbody');
       tbody.innerHTML = pedidos.length === 0
         ? '<tr><td colspan="5" style="text-align:center;color:#999">Nenhum pedido encontrado</td></tr>'
         : pedidos.map(p => `
           <tr>
-            <td>${p.clienteNome}<br><small>${p.clienteTelefone || ''}</small></td>
+            <td>${p.clienteNome}<br><small style="color:#888">${p.clienteTelefone || ''}</small></td>
             <td>${p.endereco}</td>
             <td>${p.quantidade}</td>
             <td><span class="badge ${p.status}">${p.status.replace('_', ' ')}</span></td>
             <td>
               <select onchange="mudarStatus('${p.id}', this.value)">
-                <option value="">Mudar status...</option>
+                <option value="">Mudar...</option>
                 <option>pendente</option><option>confirmado</option>
                 <option>em_entrega</option><option>entregue</option><option>cancelado</option>
               </select>
-              <button onclick="deletarPedido('${p.id}')" style="background:#dc3545;margin-left:.4rem">X</button>
+              <button onclick="deletar('${p.id}')" style="background:#dc3545;margin-left:.4rem;padding:.3rem .7rem">✕</button>
             </td>
           </tr>`).join('');
     }
 
-    async function criarPedido() {
-      const body = {
-        clienteNome: document.getElementById('nome').value.trim(),
-        clienteTelefone: document.getElementById('tel').value.trim(),
-        endereco: document.getElementById('end').value.trim(),
-        quantidade: Number(document.getElementById('qtd').value),
-      };
-      if (!body.clienteNome || !body.endereco || !body.quantidade) {
+    function criarPedido() {
+      const clienteNome = document.getElementById('nome').value.trim();
+      const endereco    = document.getElementById('end').value.trim();
+      const quantidade  = Number(document.getElementById('qtd').value);
+      if (!clienteNome || !endereco || !quantidade) {
         return mostrarMsg('Preencha nome, endereço e quantidade.', 'err');
       }
-      const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (res.ok) {
-        mostrarMsg('Pedido criado com sucesso!', 'ok');
-        ['nome','tel','end'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('qtd').value = 1;
-        carregarPedidos();
-      } else {
-        const err = await res.json();
-        mostrarMsg(err.erro, 'err');
-      }
+      const pedidos = carregar();
+      pedidos.unshift({
+        id: uuid(),
+        clienteNome,
+        clienteTelefone: document.getElementById('tel').value.trim(),
+        endereco,
+        quantidade,
+        status: 'pendente',
+        criadoEm: new Date().toISOString(),
+      });
+      salvar(pedidos);
+      ['nome','tel','end'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('qtd').value = 1;
+      mostrarMsg('Pedido criado com sucesso!', 'ok');
+      renderizar();
     }
 
-    async function mudarStatus(id, status) {
+    function mudarStatus(id, status) {
       if (!status) return;
-      const res = await fetch(`${API}/${id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
-      if (res.ok) { mostrarMsg('Status atualizado!', 'ok'); carregarPedidos(); }
-      else { const err = await res.json(); mostrarMsg(err.erro, 'err'); }
+      const pedidos = carregar();
+      const p = pedidos.find(x => x.id === id);
+      if (p) { p.status = status; salvar(pedidos); }
+      mostrarMsg('Status atualizado!', 'ok');
+      renderizar();
     }
 
-    async function deletarPedido(id) {
+    function deletar(id) {
       if (!confirm('Remover este pedido?')) return;
-      await fetch(`${API}/${id}`, { method: 'DELETE' });
+      salvar(carregar().filter(p => p.id !== id));
       mostrarMsg('Pedido removido.', 'ok');
-      carregarPedidos();
+      renderizar();
     }
 
-    carregarPedidos();
+    renderizar();
   </script>
 </body>
 </html>
