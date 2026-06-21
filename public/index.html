@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestor de Pedidos de Garrafão de Água</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0f4f8; color: #333; }
+    header { background: #1a73e8; color: white; padding: 1.5rem 2rem; }
+    header h1 { font-size: 1.4rem; }
+    main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    section { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #1a73e8; }
+    .form-group { margin-bottom: .8rem; }
+    label { display: block; font-size: .85rem; margin-bottom: .3rem; font-weight: 600; }
+    input { width: 100%; padding: .5rem; border: 1px solid #ccc; border-radius: 4px; font-size: .95rem; }
+    button { background: #1a73e8; color: white; border: none; padding: .6rem 1.2rem; border-radius: 4px; cursor: pointer; font-size: .95rem; }
+    button:hover { background: #1558b0; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { padding: .6rem .8rem; border-bottom: 1px solid #eee; text-align: left; }
+    th { background: #f5f5f5; font-weight: 600; }
+    .badge { padding: .2rem .6rem; border-radius: 12px; font-size: .78rem; font-weight: 600; }
+    .pendente { background: #fff3cd; color: #856404; }
+    .confirmado { background: #d1ecf1; color: #0c5460; }
+    .em_entrega { background: #cce5ff; color: #004085; }
+    .entregue { background: #d4edda; color: #155724; }
+    .cancelado { background: #f8d7da; color: #721c24; }
+    #msg { padding: .7rem 1rem; border-radius: 4px; margin-bottom: 1rem; display: none; }
+    #msg.ok { background: #d4edda; color: #155724; display: block; }
+    #msg.err { background: #f8d7da; color: #721c24; display: block; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gestor de Pedidos de Garrafão de Água</h1>
+  </header>
+  <main>
+    <div id="msg"></div>
+
+    <section>
+      <h2>Novo Pedido</h2>
+      <div class="form-group"><label>Nome do cliente</label><input id="nome" placeholder="Ex: João Silva" /></div>
+      <div class="form-group"><label>Telefone</label><input id="tel" placeholder="(11) 99999-9999" /></div>
+      <div class="form-group"><label>Endereço</label><input id="end" placeholder="Rua, número, bairro" /></div>
+      <div class="form-group"><label>Quantidade de garrafões</label><input id="qtd" type="number" min="1" value="1" /></div>
+      <button onclick="criarPedido()">Criar Pedido</button>
+    </section>
+
+    <section>
+      <h2>Pedidos</h2>
+      <button onclick="carregarPedidos()" style="margin-bottom:1rem">Atualizar lista</button>
+      <table>
+        <thead><tr><th>Cliente</th><th>Endereço</th><th>Qtd</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const API = '/api/pedidos';
+
+    function mostrarMsg(txt, tipo) {
+      const el = document.getElementById('msg');
+      el.textContent = txt;
+      el.className = tipo;
+      setTimeout(() => el.className = '', 3000);
+    }
+
+    async function carregarPedidos() {
+      const res = await fetch(API);
+      const pedidos = await res.json();
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = pedidos.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:#999">Nenhum pedido encontrado</td></tr>'
+        : pedidos.map(p => `
+          <tr>
+            <td>${p.clienteNome}<br><small>${p.clienteTelefone || ''}</small></td>
+            <td>${p.endereco}</td>
+            <td>${p.quantidade}</td>
+            <td><span class="badge ${p.status}">${p.status.replace('_', ' ')}</span></td>
+            <td>
+              <select onchange="mudarStatus('${p.id}', this.value)">
+                <option value="">Mudar status...</option>
+                <option>pendente</option><option>confirmado</option>
+                <option>em_entrega</option><option>entregue</option><option>cancelado</option>
+              </select>
+              <button onclick="deletarPedido('${p.id}')" style="background:#dc3545;margin-left:.4rem">X</button>
+            </td>
+          </tr>`).join('');
+    }
+
+    async function criarPedido() {
+      const body = {
+        clienteNome: document.getElementById('nome').value.trim(),
+        clienteTelefone: document.getElementById('tel').value.trim(),
+        endereco: document.getElementById('end').value.trim(),
+        quantidade: Number(document.getElementById('qtd').value),
+      };
+      if (!body.clienteNome || !body.endereco || !body.quantidade) {
+        return mostrarMsg('Preencha nome, endereço e quantidade.', 'err');
+      }
+      const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.ok) {
+        mostrarMsg('Pedido criado com sucesso!', 'ok');
+        ['nome','tel','end'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('qtd').value = 1;
+        carregarPedidos();
+      } else {
+        const err = await res.json();
+        mostrarMsg(err.erro, 'err');
+      }
+    }
+
+    async function mudarStatus(id, status) {
+      if (!status) return;
+      const res = await fetch(`${API}/${id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+      if (res.ok) { mostrarMsg('Status atualizado!', 'ok'); carregarPedidos(); }
+      else { const err = await res.json(); mostrarMsg(err.erro, 'err'); }
+    }
+
+    async function deletarPedido(id) {
+      if (!confirm('Remover este pedido?')) return;
+      await fetch(`${API}/${id}`, { method: 'DELETE' });
+      mostrarMsg('Pedido removido.', 'ok');
+      carregarPedidos();
+    }
+
+    carregarPedidos();
+  </script>
+</body>
+</html>
