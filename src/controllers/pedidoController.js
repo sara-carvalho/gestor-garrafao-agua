@@ -14,11 +14,11 @@ function buscar(req, res) {
 }
 
 function criar(req, res) {
-  const { clienteNome, clienteTelefone, endereco, quantidade } = req.body;
-  if (!clienteNome || !endereco || !quantidade) {
-    return res.status(400).json({ erro: 'clienteNome, endereco e quantidade são obrigatórios' });
+  const { clienteNome, apartamento, quantidade } = req.body;
+  if (!clienteNome || !apartamento || !quantidade) {
+    return res.status(400).json({ erro: 'clienteNome, apartamento e quantidade são obrigatórios' });
   }
-  const pedido = service.criarNovoPedido({ clienteNome, clienteTelefone, endereco, quantidade });
+  const pedido = service.criarNovoPedido({ clienteNome, apartamento, quantidade });
   res.status(201).json(pedido);
 }
 

@@ -13,7 +13,7 @@ describe('Pedidos API', () => {
   it('POST /api/pedidos - cria pedido', async () => {
     const res = await request(app)
       .post('/api/pedidos')
-      .send({ clienteNome: 'Maria', endereco: 'Rua A, 10', quantidade: 2 });
+      .send({ clienteNome: 'Maria', apartamento: 'Rua A, 10', quantidade: 2 });
     expect(res.status).toBe(201);
     expect(res.body.status).toBe('pendente');
     pedidoId = res.body.id;

@@ -8,12 +8,11 @@ const STATUS = {
   CANCELADO: 'cancelado',
 };
 
-function criarPedido({ clienteNome, clienteTelefone, endereco, quantidade }) {
+function criarPedido({ clienteNome, apartamento, quantidade }) {
   return {
     id: uuidv4(),
     clienteNome,
-    clienteTelefone,
-    endereco,
+    apartamento,
     quantidade,
     status: STATUS.PENDENTE,
     criadoEm: new Date().toISOString(),

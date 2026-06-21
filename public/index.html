@@ -42,8 +42,7 @@
     <section>
       <h2>Novo Pedido</h2>
       <div class="form-group"><label>Nome do cliente</label><input id="nome" placeholder="Ex: João Silva" /></div>
-      <div class="form-group"><label>Telefone</label><input id="tel" placeholder="(11) 99999-9999" /></div>
-      <div class="form-group"><label>Endereço</label><input id="end" placeholder="Rua, número, bairro" /></div>
+      <div class="form-group"><label>Apartamento</label><input id="end" placeholder="Ex: Apto 302, Bloco B" /></div>
       <div class="form-group"><label>Quantidade de garrafões</label><input id="qtd" type="number" min="1" value="1" /></div>
       <button onclick="criarPedido()">Criar Pedido</button>
     </section>
@@ -51,7 +50,7 @@
     <section>
       <h2>Pedidos</h2>
       <table>
-        <thead><tr><th>Cliente</th><th>Endereço</th><th>Qtd</th><th>Status</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Cliente</th><th>Apartamento</th><th>Qtd</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
     </section>
@@ -86,7 +85,7 @@
         ? '<tr><td colspan="5" style="text-align:center;color:#999">Nenhum pedido encontrado</td></tr>'
         : pedidos.map(p => `
           <tr>
-            <td>${p.clienteNome}<br><small style="color:#888">${p.clienteTelefone || ''}</small></td>
+            <td>${p.clienteNome}</td>
             <td>${p.endereco}</td>
             <td>${p.quantidade}</td>
             <td><span class="badge ${p.status}">${p.status.replace('_', ' ')}</span></td>
@@ -112,14 +111,13 @@
       pedidos.unshift({
         id: uuid(),
         clienteNome,
-        clienteTelefone: document.getElementById('tel').value.trim(),
         endereco,
         quantidade,
         status: 'pendente',
         criadoEm: new Date().toISOString(),
       });
       salvar(pedidos);
-      ['nome','tel','end'].forEach(id => document.getElementById(id).value = '');
+      ['nome','end'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('qtd').value = 1;
       mostrarMsg('Pedido criado com sucesso!', 'ok');
       renderizar();
